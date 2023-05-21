@@ -131,15 +131,193 @@ Question 1
 \end_layout
 
 \begin_layout Enumerate
-SQuAD
+QNLI - The dataset aims to measure a model's ability to discern whether
+ the answer to a question is explicitly mentioned within the provided context
+ sentence.
+ Understanding whether a paragraph contains information that answers a question,
+ is a facet of language understanding.
 \end_layout
 
 \begin_layout Enumerate
-sdfsd
+TriviaQA - The dataset attempts to measure a model's ability to understand
+ and successfully answer relatively complexly formatted questions given
+ a set of documents that may contain the answer.
+ Essentially, this dataset aims to evaluate the reasoning capabilities of
+ models when dealing with complex questions in a Natural Language Inference
+ (NLI) context.
 \end_layout
 
 \begin_layout Enumerate
-sdfsdf
+Quoref - This is an coreference dataset using QA.
+ The model is expected to be able to link different references to the same
+ entities.
+ Being able to connect between different references is clearly a facet of
+ language understanding.
+\end_layout
+
+\begin_layout Subsection*
+Question 2
+\end_layout
+
+\begin_layout Enumerate
+Interactive Summarization
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Task Definition: create a summary of a document with user feedback.
+ Feedback can be about length of the summary, summary focus etc.
+\end_layout
+
+\begin_layout Enumerate
+I've seen the reddittifu dataset used for this with rouge scores domain
+ is reddit with approximately 125k samples.
+\end_layout
+
+\begin_layout Enumerate
+Challenges: Evaluating the model output.
+ how to use user feedback for he summary.
+\end_layout
+
+\end_deeper
+\begin_layout Enumerate
+Multi-document summarization
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+Task Definition: create a static summary of the information contained in
+ a set of documents that is nonrepetitive and concise.
+ 
+\end_layout
+
+\begin_layout Enumerate
+Multi-News, news summarization, approximately 45k.
+ 
+\begin_inset Newline newline
+\end_inset
+
+DUC 2004, news, approximately 50 samples.
+ 
+\begin_inset Newline newline
+\end_inset
+
+In both datasets samples are sets of articles
+\end_layout
+
+\begin_layout Enumerate
+Inherent challenges: 
+\begin_inset Newline newline
+\end_inset
+
+removing repetitiveness - recognizing information that appears in more than
+ one document and making sure it appears only once in the summary.
+ 
+\begin_inset Newline newline
+\end_inset
+
+Temporal correctness - recognizing when information from one article is
+ more up to date than another and modifying the summary accordingly.
+\end_layout
+
+\end_deeper
+\begin_layout Subsection*
+Question 3
+\end_layout
+
+\begin_layout Standard
+The efficient parallelization benefit of transfrmers applies both at training
+ and at inference.
+ 
+\end_layout
+
+\begin_layout Standard
+Encoding individual words is slower for an RNN, as representations for words
+ are compted sequentially.
+ In the transformer model word representations are computed non-sequentially,
+ and therefore can be parallelized.
+ This effects both train and inference, as for both one must process sentences.
+ 
+\end_layout
+
+\begin_layout Standard
+The one big advantage of RNNs is that the self attention in the transformer
+ architecture is around 
+\begin_inset Formula $O(N^{2})$
+\end_inset
+
+ in compute if the self attention is unrestricted in length, where 
+\begin_inset Formula $N$
+\end_inset
+
+ is the number of input tokens.
+ This implies that the parallelization may not be worthwhile for very long
+ input sequences.
+ Of course, this must be weighed against the parallelization benefit.
+\end_layout
+
+\begin_layout Standard
+Tl;dr inference and train both benefit from the parallelization.
+\end_layout
+
+\begin_layout Subsection*
+Question 4
+\end_layout
+
+\begin_layout Enumerate
+I would finetune ELECTRA-base as I don't have money for InstructGPT or the
+ resources to run T5 XXL.
+\end_layout
+
+\begin_layout Enumerate
+Since I only know if the sentences in the pairs are the same or not I would
+ build a bert classifier that would receive concatenated pairs of sentences
+ and classify them as same/not same.
+ Sentences would be concatenated using a [sep] token and the classifier
+ would be trained on the [CLS] vector made by said said sentences.
+ Basically, I would add a classification layer for the same/not same prediction
+ on top of bert and then train on the sentence pairs.
+ 
+\begin_inset Newline newline
+\end_inset
+
+Tl;dr build a classification model using bert.
+\end_layout
+
+\begin_layout Enumerate
+Reasons:
+\end_layout
+
+\begin_deeper
+\begin_layout Enumerate
+For: ChatGPT is state of the art, and you want to compare yourself against
+ the best in class.
+\begin_inset Newline newline
+\end_inset
+
+For: You like banging your head against the wall and this is an excellent
+ way to do so.
+\begin_inset Newline newline
+\end_inset
+
+For: interacting with OpenAI's API is a pleasent experience.
+\end_layout
+
+\begin_layout Enumerate
+Against: ChatGPT is closed source and you have no idea what your actually
+ comparing yourself against(changes in model version, unknown training data/meth
+odology).
+\begin_inset Newline newline
+\end_inset
+
+Against: The version of ChatGPT that your comparing against could be depracated
+ without notice while you're still running your experiments and you'll be
+ SOL(not to mention your experiments won't be reproducible).
+\end_layout
+
+\end_deeper
+\begin_layout Section
+Programming Exercise
 \end_layout
 
 \end_body

@@ -15,6 +15,10 @@ import numpy as np
 import time
 import os
 import sys
+# import wandb
+#
+# WANDB_PROJECT = "anlp_ex1"
+
 OUTPUT_DIR = "/output"
 
 MODELS = ['bert-base-uncased',
@@ -29,6 +33,21 @@ def main():
     num_train_samples: int = int(sys.argv[2])
     num_validation_samples: int = int(sys.argv[3])
     num_samples_to_predict: int = int(sys.argv[4])
+
+    # ### WANDB SETUP ###
+    #
+    # # set the wandb project where this run will be logged
+    # os.environ["WANDB_PROJECT"] = WANDB_PROJECT
+    #
+    # # save your trained model checkpoint to wandb
+    # os.environ["WANDB_LOG_MODEL"] = "true"
+    #
+    # # turn off watch to log faster
+    # os.environ["WANDB_WATCH"] = "false"
+    #
+    # wandb.login()
+    #
+    # ### END WANDB SETUP ###
 
 
     # load dataset
@@ -50,7 +69,7 @@ def main():
     train_start_time = time.time()
 
     for model_to_load in MODELS:
-        print(f"\n\n\n~~~~~~~~~~\nSTARTING MODEL {model_to_load}\n~~~~~~~~~~\n\n\n")
+        print(f"\n\n\n..........\nSTARTING MODEL {model_to_load}\n.........\n\n\n")
         models_to_accuracies[model_to_load] = []
 
         for seed in range(num_seeds):
@@ -75,12 +94,13 @@ def main():
             best_mean = mean
             best_model_name = model_name
 
-    print(f"\n\n\n~~~~~~~~~~~\nBEST MODEL: {best_model_name}")
+    print(f"\n\n\n.............\nTOP MODEL: {best_model_name}")
     best_seed = int(np.argmax(model_to_mean_std[best_model_name][0]))
-    print(f"BEST SEED: {best_seed}\n~~~~~~~~~~~~")
+    print(f"TOP SEED: {best_seed}\n.............")
+    set_seed(best_seed)
     best_trainer = models_to_accuracies[best_model_name][best_seed][1]
     preprocess_function = models_to_accuracies[best_model_name][best_seed][2]
-    set_seed(best_seed)
+
 
     prediction_start_time = time.time()
 
@@ -107,6 +127,15 @@ def main():
                        prediction_end_time - prediction_start_time)
 
 
+def write_predictions_file(predictions, test_ds):
+    predicts_txt = ""
+    for i, prediction in enumerate(predictions):
+        predicts_txt += f"{test_ds[i]['sentence']}###{prediction}\n"
+
+    with open(os.path.join(OUTPUT_DIR, "predictions.txt"), "w") as f:
+        f.write(predicts_txt)
+
+
 def write_res_file(model_to_mean_std, train_time, predict_time):
     res_txt = ""
     for model_name, (accuracies, mean, std) in model_to_mean_std.items():
@@ -119,20 +148,12 @@ def write_res_file(model_to_mean_std, train_time, predict_time):
         f.write(res_txt)
 
 
-def write_predictions_file(predictions, test_ds):
-    predicts_txt = ""
-    for i, prediction in enumerate(predictions):
-        predicts_txt += f"{test_ds[i]['sentence']}###{prediction}\n"
-
-    with open(os.path.join(OUTPUT_DIR, "predictions.txt"), "w") as f:
-        f.write(predicts_txt)
-
-
 def finetune_model(model_to_load, seed, train_data, validation_data):
     run_name = f"{model_to_load.replace('/', '-')}_seed{seed}"
     run_path = os.path.join(OUTPUT_DIR, run_name)
-    print(f"\n\n\n~~~~~~~~~~\nSTARTING SEED {seed} ON MODEL {model_to_load}\n~~~~~~~~~~\n\n\n")
-    set_seed(seed)
+    # wandb.init(name=run_name, dir=OUTPUT_DIR, project=WANDB_PROJECT, reinit=True)
+
+    print(f"\n\n\n............\nSTARTING SEED {seed} ON MODEL {model_to_load}.......")
     # load model and tokenizer
     config = AutoConfig.from_pretrained(model_to_load)
     tokenizer = AutoTokenizer.from_pretrained(model_to_load)
@@ -158,7 +179,9 @@ def finetune_model(model_to_load, seed, train_data, validation_data):
     training_args = TrainingArguments(output_dir=run_path,
                                       # report_to='wandb',
                                       run_name=run_name,
-                                      save_strategy="no")
+                                      save_strategy="no",
+                                      seed=seed
+                                      )
 
     # init trainer
     trainer = Trainer(
@@ -183,6 +206,7 @@ def finetune_model(model_to_load, seed, train_data, validation_data):
     metrics = trainer.evaluate(eval_dataset=validation_data)
     trainer.log_metrics("eval", metrics)
     trainer.save_metrics("eval", metrics)
+    # wandb.finish()
     return metrics['eval_accuracy'], trainer, preprocess_function
 
 

@@ -6,11 +6,15 @@ from transformers import (
     AutoModel,
     EvalPrediction,
     Trainer,
-    set_seed
+    set_seed,
+    TrainingArguments
 )
 from datasets import load_dataset
 from evaluate import load
 import numpy as np
+import time
+import os
+OUTPUT_DIR = "/output"
 
 MODELS = ['bert-base-uncased',
           'roberta-base',
@@ -23,6 +27,9 @@ class runParams:
     num_samples_to_predict: int = field(default=-1, metadata={"help": "number of samples to predict a sentiment for"})
 
 def main():
+    if not os.path.exists(OUTPUT_DIR):
+        os.mkdir(OUTPUT_DIR)
+
     parser = HfArgumentParser((runParams))
     my_params = parser.parse_args_into_dataclasses()[0]
 
@@ -35,40 +42,54 @@ def main():
     test_data = dataset['test'] if my_params.num_samples_to_predict == -1 \
         else dataset['test'].select(range(my_params.num_samples_to_predict))
 
+    train_start_time = time.time()
     for model_to_load in MODELS:
+        print(f"\n\n\n~~~~~~~~~~\nSTARTING MODEL {model_to_load}\n~~~~~~~~~~\n\n\n")
 
-        # load model and tokenizer
-        config = AutoConfig.from_pretrained(model_to_load)
-        tokenizer = AutoTokenizer.from_pretrained(model_to_load)
-        model = AutoModel.from_pretrained(model_to_load, config=config)
+        for seed in range(my_params.num_seeds):
+            run_name = f"{model_to_load.replace('/', '-')}_seed{seed}"
+            run_path = os.path.join(OUTPUT_DIR, run_name)
+            print(f"\n\n\n~~~~~~~~~~\nSTARTING SEED {seed} ON MODEL {model_to_load}\n~~~~~~~~~~\n\n\n")
 
-        # tokenize train data
-        def preprocess_function(examples):
-            return tokenizer(examples['sentence'], truncation=True)
+            set_seed(seed)
+            # load model and tokenizer
+            config = AutoConfig.from_pretrained(model_to_load)
+            tokenizer = AutoTokenizer.from_pretrained(model_to_load)
+            model = AutoModel.from_pretrained(model_to_load, config=config)
 
-        train_data = train_data.map(preprocess_function, batched=True)
-        validation_data = validation_data.map(preprocess_function, batched=True)
+            # tokenize train data
+            def preprocess_function(examples):
+                return tokenizer(examples['sentence'], truncation=True)
 
-        # define metric
-        metric = load("accuracy")
+            train_data = train_data.map(preprocess_function, batched=True)
+            validation_data = validation_data.map(preprocess_function, batched=True)
 
-        def compute_metrics(p: EvalPrediction):
-            preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
-            preds = np.argmax(preds, axis=1)
-            return metric.compute(predictions=preds, references=p.label_ids)
+            # define metric
+            metric = load("accuracy")
 
-        # init trainer
-        trainer = Trainer(
-            model=model,
-            # args=training_args,
-            train_dataset=train_data,
-            eval_dataset=validation_data,
-            compute_metrics=compute_metrics,
-            tokenizer=tokenizer,
-        )
+            def compute_metrics(p: EvalPrediction):
+                preds = p.predictions[0] if isinstance(p.predictions, tuple) else p.predictions
+                preds = np.argmax(preds, axis=1)
+                return metric.compute(predictions=preds, references=p.label_ids)
 
-        #train
-        train_result = trainer.train()
+            training_args = TrainingArguments(output_dir=run_path,
+                                              # report_to='wandb',
+                                              run_name=run_name,
+                                              save_strategy="no",
+                                              save_steps=100000)
+
+            # init trainer
+            trainer = Trainer(
+                model=model,
+                # args=training_args,
+                train_dataset=train_data,
+                eval_dataset=validation_data,
+                compute_metrics=compute_metrics,
+                tokenizer=tokenizer,
+            )
+
+            #train
+            train_result = trainer.train()
 
 
 
